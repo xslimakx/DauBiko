@@ -17,6 +17,7 @@ pub const LAMP_RED_OFF: &[u8] = include_bytes!("../assets/ui/lamp_red_off.png");
 pub const LAMP_AMBER_ON: &[u8] = include_bytes!("../assets/ui/lamp_amber_on.png");
 pub const LAMP_AMBER_OFF: &[u8] = include_bytes!("../assets/ui/lamp_amber_off.png");
 pub const SCREW: &[u8] = include_bytes!("../assets/ui/screw.png");
+pub const PLATE: &[u8] = include_bytes!("../assets/ui/copper_plate.png");
 
 fn placeholder() -> ColorImage {
     ColorImage::new([4, 4], Color32::from_gray(60))

@@ -86,7 +86,7 @@ def faceplate():
     d = np.minimum.reduce([xx, W - 1 - xx, yy, H - 1 - yy]) / S
     wear_n = norm(noise(H, W, 3) + 0.5 * noise(H, W, 12))
     edge = np.clip((7 - d) / 7, 0, 1) ** 2
-    worn = np.clip((wear_n * 0.6 + edge * 1.1 - 0.85) * 3.0, 0, 1) * 0.8
+    worn = np.clip((wear_n * 0.6 + edge * 1.1 - 0.85) * 3.0, 0, 1) * 0.35
     bare = np.array([0.46, 0.44, 0.45], np.float32) * (1.0 + 0.10 * brushed)[..., None]
     rgb = rgb * (1 - worn[..., None]) + bare * worn[..., None]
 
@@ -173,7 +173,7 @@ def spun_metal(n, cx, cy, r, light_ang=-2.3, base=0.62):
     return shade, rr
 
 
-def knob_small(n=192, r_frac=0.36):
+def knob_small(n=240, r_frac=0.30):
     """Static layer (shadow, bakelite skirt shading, spun aluminium cap) and rotating layer (ribs + pointer)."""
     c = n / 2
     r = n * r_frac
@@ -227,9 +227,9 @@ def knob_small(n=192, r_frac=0.36):
     save_rgba(rgbr, al, "knob_rot.png", down=1)
 
 
-def knob_big(n=320):
+def knob_big(n=400):
     c = n / 2
-    r = n * 0.40
+    r = n * 0.32
     yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
     dx, dy = xx - c, yy - c
     rr = np.sqrt(dx * dx + dy * dy)
@@ -399,7 +399,58 @@ def vu_face():
     save_rgb(np.clip(rgb, 0, 1), "vu_face.jpg", q=90)
 
 
+def copper_plate():
+    """Polished copper name plate: soft bevel, warm sheen, light oxidation, two copper screws."""
+    W, H = 200 * S, 42 * S
+    pad = 10
+    w, h = W + 2 * pad, H + 2 * pad
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    x0, y0, x1, y1 = pad, pad, pad + W, pad + H
+    rad = 5 * S
+    # rounded-rect signed distance (positive inside)
+    qx = np.maximum(np.maximum(x0 + rad - xx, xx - (x1 - rad)), 0)
+    qy = np.maximum(np.maximum(y0 + rad - yy, yy - (y1 - rad)), 0)
+    inside_d = np.minimum.reduce([xx - x0, x1 - xx, yy - y0, y1 - yy])
+    d = np.where((qx > 0) & (qy > 0), rad - np.sqrt(qx ** 2 + qy ** 2), np.where((qx > 0) | (qy > 0), rad - np.maximum(qx, qy), inside_d))
+    body = np.clip(d + 0.5, 0, 1)
+    # drop shadow
+    sd = np.roll(np.roll(d, 3 * S, axis=0), 2 * S, axis=1)
+    shadow = np.clip((sd + 6) / 8, 0, 1) * 0.55
+    u = (xx - x0) / W
+    v = (yy - y0) / H
+    base = np.array([0.74, 0.42, 0.25], np.float32)
+    lum = 0.78 + 0.22 * (1 - v) + 0.10 * np.exp(-((u - 0.30) ** 2) / 0.02) * (1 - v) + 0.04 * noise(h, w, 30)
+    rgb = base * lum[..., None]
+    # light oxidation: darker brown blotches + a hint of verdigris near the bottom edge
+    ox = np.clip(norm(noise(h, w, 9) + 0.6 * noise(h, w, 3)) * 1.8 - 1.05, 0, 1)
+    rgb = rgb * (1 - 0.30 * ox[..., None]) + np.array([0.35, 0.18, 0.10]) * 0.30 * ox[..., None]
+    ver = np.clip(norm(noise(h, w, 5)) * 2.2 - 1.6, 0, 1) * np.clip((v - 0.75) * 4, 0, 1)
+    rgb = rgb * (1 - 0.35 * ver[..., None]) + np.array([0.30, 0.55, 0.45]) * 0.35 * ver[..., None]
+    # bevel
+    bev = np.clip(1 - d / (2.2 * S), 0, 1)
+    top = np.clip(1 - v * 2, 0, 1)
+    rgb = rgb + (bev * (0.35 * top - 0.25 * (1 - top)))[..., None] * np.array([1.0, 0.85, 0.7])
+    rgb += RNG.standard_normal((h, w, 1)).astype(np.float32) * 0.008
+    # copper screws
+    for sx in (x0 + 9 * S, x1 - 9 * S):
+        sy = (y0 + y1) / 2
+        dd = np.sqrt((xx - sx) ** 2 + (yy - sy) ** 2)
+        head = np.clip(3.4 * S - dd + 0.5, 0, 1)
+        nd = ((xx - sx) * -0.55 + (yy - sy) * -0.7) / (3.4 * S)
+        hv = (0.62 + 0.35 * np.clip(nd, -1, 1))[..., None] * np.array([0.85, 0.52, 0.32])
+        slot = np.clip(0.9 * S - np.abs((xx - sx) * 0.5 - (yy - sy) * 0.85), 0, 1) * (dd < 2.8 * S)
+        hv = hv * (1 - 0.7 * slot[..., None])
+        ring = np.clip(1 - np.abs(dd - 3.6 * S) / (0.8 * S), 0, 1) * 0.5
+        rgb = rgb * (1 - ring[..., None])
+        rgb = rgb * (1 - head[..., None]) + hv * head[..., None]
+    alpha = np.maximum(body, shadow)
+    rgb = rgb * body[..., None]
+    save_rgba(rgb, alpha, "copper_plate.png")
+    print("copper plate pad px", pad, "size", w, h)
+
+
 if __name__ == "__main__":
+    copper_plate()
     faceplate()
     wood()
     knob_small()

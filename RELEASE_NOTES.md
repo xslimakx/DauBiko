@@ -1,3 +1,11 @@
+# DauBiko v1.0.1
+
+- Engraved copper name plate (no longer touches the corner screw)
+- Knob shadows are no longer cut off (DYNAMICS and the small knobs)
+- Knob labels sit clear of the centre marks; MONO / TUBE switches line up with the knob labels
+- OUTPUT: LIMIT button, limiter GR meter and peak read-out in one tidy row
+- Calmer panel edges
+
 # DauBiko v1.0.0
 
 First release of DauBiko, an analog-style mastering processor.

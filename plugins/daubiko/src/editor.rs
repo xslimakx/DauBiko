@@ -44,6 +44,7 @@ struct Tex {
     amb_on: TextureHandle,
     amb_off: TextureHandle,
     screw: TextureHandle,
+    plate: TextureHandle,
 }
 
 struct Gui {
@@ -74,6 +75,7 @@ fn load(ctx: &egui::Context) -> Tex {
         amb_on: l("db_amb_on", pics::png(pics::LAMP_AMBER_ON)),
         amb_off: l("db_amb_off", pics::png(pics::LAMP_AMBER_OFF)),
         screw: l("db_screw", pics::png(pics::SCREW)),
+        plate: l("db_plate", pics::png(pics::PLATE)),
     }
 }
 
@@ -141,9 +143,9 @@ pub fn create(params: Arc<DauBikoParams>, meters: Arc<Meters>) -> Option<Box<dyn
                 }
 
                 // ------------------------------------------------ header: brass name plate
-                nameplate(ui, rect(40.0, 12.0, 190.0, 40.0));
-                print(&painter, at(250.0, 25.0), Align2::LEFT_CENTER, "ANALOG  MASTERING  PROCESSOR", 11.0, PRINT_DIM);
-                print(&painter, at(250.0, 42.0), Align2::LEFT_CENTER, "MODEL DB-1    TONE · DYNAMICS · COLOR · LIMIT", 8.5, Color32::from_rgb(0x84, 0x7a, 0x6e));
+                nameplate(ui, tex, rect(56.0, 11.0, 200.0, 42.0));
+                print(&painter, at(276.0, 25.0), Align2::LEFT_CENTER, "ANALOG  MASTERING  PROCESSOR", 11.0, PRINT_DIM);
+                print(&painter, at(276.0, 42.0), Align2::LEFT_CENTER, "MODEL DB-1    TONE · DYNAMICS · COLOR · LIMIT", 8.5, Color32::from_rgb(0x84, 0x7a, 0x6e));
                 groove_h(&painter, o.x + 36.0, o.x + BASE_W - 36.0, o.y + 62.0);
 
                 // power: jewel + toggle
@@ -197,12 +199,12 @@ pub fn create(params: Arc<DauBikoParams>, meters: Arc<Meters>) -> Option<Box<dyn
                 print(&painter, at(942.0, 337.0), Align2::RIGHT_CENTER, "+12", 8.0, PRINT_DIM);
 
                 // ------------------------------------------------ lower row
-                let ky = 440.0;
+                let ky = 442.0;
                 let kr = 23.0;
-                section(&painter, rect(36.0, 364.0, 90.0, 180.0), "INPUT");
+                section(&painter, rect(36.0, 360.0, 90.0, 178.0), "INPUT");
                 knob(ui, setter, tex, &p.input, "LEVEL", at(81.0, ky), kr, true, "Input level into the processor.");
 
-                section(&painter, rect(134.0, 364.0, 404.0, 180.0), "TONE");
+                section(&painter, rect(134.0, 360.0, 404.0, 178.0), "TONE");
                 let tone: [(&FloatParam, &str, bool, &str); 6] = [
                     (&p.lowcut, "LOW CUT", false, "Removes sub rumble below the set frequency (12 dB/oct). OFF at the left stop."),
                     (&p.low, "LOW", true, "Low shelf at 80 Hz: weight and warmth of the bass."),
@@ -215,34 +217,34 @@ pub fn create(params: Arc<DauBikoParams>, meters: Arc<Meters>) -> Option<Box<dyn
                     knob(ui, setter, tex, prm, name, at(170.0 + 66.4 * i as f32, ky), kr, bip, tip);
                 }
 
-                section(&painter, rect(546.0, 364.0, 128.0, 180.0), "STEREO");
+                section(&painter, rect(546.0, 360.0, 128.0, 178.0), "STEREO");
                 knob(ui, setter, tex, &p.width, "WIDTH", at(586.0, ky), kr, true, "Stereo width: 0 % mono, 100 % unchanged, 200 % twice as wide.");
                 let bm = p.bass_mono.value();
-                if toggle(ui, tex, at(644.0, ky - 6.0), bm, "MONO", "BASS", "BASS MONO: makes everything below 120 Hz mono for a tight, centred low end.") {
+                if toggle(ui, tex, at(644.0, ky), bm, "MONO", "BASS", "BASS MONO: makes everything below 120 Hz mono for a tight, centred low end.") {
                     set_b(setter, &p.bass_mono, !bm);
                 }
                 lamp(&painter, if bm && on { &tex.amb_on } else { &tex.amb_off }, at(644.0, ky + 50.0), 4.5);
 
-                section(&painter, rect(682.0, 364.0, 128.0, 180.0), "COLOR");
+                section(&painter, rect(682.0, 360.0, 128.0, 178.0), "COLOR");
                 knob(ui, setter, tex, &p.drive, "DRIVE", at(722.0, ky), kr, false, "Analog saturation (2x oversampled). Adds harmonics and density.");
                 let tube = p.character.value() == CharacterParam::Tube;
-                if toggle(ui, tex, at(780.0, ky - 6.0), tube, "TUBE", "TAPE", "TAPE: smooth odd harmonics, round peaks.\nTUBE: warm even harmonics.") {
+                if toggle(ui, tex, at(780.0, ky), tube, "TUBE", "TAPE", "TAPE: smooth odd harmonics, round peaks.\nTUBE: warm even harmonics.") {
                     set_e(setter, &p.character, if tube { CharacterParam::Tape } else { CharacterParam::Tube });
                 }
 
-                section(&painter, rect(818.0, 364.0, 146.0, 180.0), "OUTPUT");
+                section(&painter, rect(818.0, 360.0, 146.0, 178.0), "OUTPUT");
                 knob(ui, setter, tex, &p.gain, "GAIN", at(852.0, ky), kr, false, "Gain into the limiter: makes the master louder.");
                 knob(ui, setter, tex, &p.ceiling, "CEILING", at(926.0, ky), kr, false, "Highest output peak the limiter allows.");
                 let lim = p.limiter.value();
-                if push_button(ui, tex, at(842.0, 521.0), lim && on, "LIMIT", "Lookahead peak limiter on / off (1.5 ms lookahead).") {
+                if push_button(ui, tex, at(852.0, 520.0), lim && on, "LIMIT", "Lookahead peak limiter on / off (1.5 ms lookahead).") {
                     set_b(setter, &p.limiter, !lim);
                 }
                 let lim_now = Meters::get(&meters.lim_db);
                 st.lim_show = if lim_now < st.lim_show { lim_now } else { st.lim_show + (lim_now - st.lim_show) * 0.12 };
-                led_bar_gr(&painter, rect(884.0, 512.0, 70.0, 7.0), if on && lim { -st.lim_show } else { 0.0 });
+                led_bar_gr(&painter, rect(896.0, 514.0, 60.0, 6.0), if on && lim { -st.lim_show } else { 0.0 });
                 let out_db = Meters::get(&meters.out_db);
                 st.out_hold = if out_db > st.out_hold { out_db } else { st.out_hold - 0.4 };
-                painter.text(at(919.0, 530.0), Align2::CENTER_CENTER, if st.out_hold > -60.0 { format!("PK {:+.1}", st.out_hold) } else { "PK  --".into() }, FontId::monospace(8.5), if st.out_hold > -0.05 { RED } else { PRINT_DIM });
+                painter.text(at(926.0, 530.0), Align2::CENTER_CENTER, if st.out_hold > -60.0 { format!("PK {:+.1}", st.out_hold) } else { "PK  --".into() }, FontId::monospace(8.5), if st.out_hold > -0.05 { RED } else { PRINT_DIM });
 
                 resize_grip(ui, ctx, &size_state, full);
             });
@@ -297,44 +299,19 @@ fn section(p: &Painter, r: Rect, title: &str) {
     print(p, Pos2::new(r.left() + 10.0, r.top() + 12.0), Align2::LEFT_CENTER, title, 9.5, PRINT_DIM);
 }
 
-/// Brushed brass name plate with the engraved logo and two small screws.
-fn nameplate(ui: &Ui, r: Rect) {
+/// Copper name plate (pre-rendered) with the engraved logo.
+fn nameplate(ui: &Ui, tex: &Tex, r: Rect) {
     let p = ui.painter();
-    p.rect_filled(r.translate(Vec2::new(1.5, 2.5)), CornerRadius::same(3), Color32::from_black_alpha(150));
-    let mut m = Mesh::default();
-    let (tl, tr, br, bl) = (Color32::from_rgb(0xc9, 0xa7, 0x5c), Color32::from_rgb(0xa8, 0x86, 0x42), Color32::from_rgb(0x7c, 0x60, 0x2c), Color32::from_rgb(0x96, 0x77, 0x3a));
-    m.colored_vertex(r.left_top(), tl);
-    m.colored_vertex(r.right_top(), tr);
-    m.colored_vertex(r.right_bottom(), br);
-    m.colored_vertex(r.left_bottom(), bl);
-    m.add_triangle(0, 1, 2);
-    m.add_triangle(0, 2, 3);
-    p.add(Shape::mesh(m));
-    // brushing
-    let mut y = r.top() + 1.0;
-    let mut k = 0u32;
-    while y < r.bottom() - 1.0 {
-        k = k.wrapping_mul(1664525).wrapping_add(1013904223);
-        let a = ((k >> 24) % 26) as u8;
-        p.hline(r.left() + 1.0..=r.right() - 1.0, y, Stroke::new(0.6_f32, if k & 1 == 0 { Color32::from_white_alpha(a) } else { Color32::from_black_alpha(a) }));
-        y += 1.1;
-    }
-    p.rect_stroke(r, CornerRadius::same(3), Stroke::new(1.0_f32, Color32::from_rgb(0x5a, 0x44, 0x1c)), StrokeKind::Inside);
-    p.hline(r.left() + 2.0..=r.right() - 2.0, r.top() + 1.5, Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(255, 240, 200, 70)));
-    for x in [r.left() + 8.0, r.right() - 8.0] {
-        let c = Pos2::new(x, r.center().y);
-        p.circle_filled(c, 3.2, Color32::from_rgb(0x6e, 0x58, 0x2c));
-        p.circle_filled(c + Vec2::new(-0.6, -0.6), 2.4, Color32::from_rgb(0xb8, 0x98, 0x52));
-        p.line_segment([c + Vec2::new(-2.0, 0.8), c + Vec2::new(2.0, -0.8)], Stroke::new(0.9_f32, Color32::from_rgb(0x4a, 0x38, 0x18)));
-    }
-    // engraved logo: dark cut with a bright lower edge
+    // the texture has a 5 px margin (at layout scale) around the plate for its shadow
+    p.image(tex.plate.id(), r.expand(5.0), UV, Color32::WHITE);
     let mut job = LayoutJob::default();
     job.append("DauBiko", 0.0, TextFormat { font_id: FontId::proportional(26.0), color: Color32::WHITE, extra_letter_spacing: 3.0, ..Default::default() });
     let g = ui.fonts(|f| f.layout_job(job));
     let pos = Pos2::new(r.center().x - g.size().x / 2.0, r.center().y - g.size().y / 2.0);
-    p.galley_with_override_text_color(pos + Vec2::new(0.0, 1.2), g.clone(), Color32::from_rgba_unmultiplied(255, 238, 196, 150));
-    p.galley_with_override_text_color(pos + Vec2::new(0.0, -0.6), g.clone(), Color32::from_rgba_unmultiplied(40, 26, 6, 160));
-    p.galley_with_override_text_color(pos, g, Color32::from_rgb(0x24, 0x18, 0x08));
+    // engraved: bright lower lip, dark upper wall, deep cut
+    p.galley_with_override_text_color(pos + Vec2::new(0.0, 1.2), g.clone(), Color32::from_rgba_unmultiplied(255, 214, 170, 130));
+    p.galley_with_override_text_color(pos + Vec2::new(0.0, -0.7), g.clone(), Color32::from_rgba_unmultiplied(30, 12, 4, 150));
+    p.galley_with_override_text_color(pos, g, Color32::from_rgb(0x3a, 0x1c, 0x0c));
 }
 
 fn lamp(p: &Painter, t: &TextureHandle, c: Pos2, dome_r: f32) {
@@ -381,7 +358,7 @@ fn knob<P: Param>(ui: &mut Ui, setter: &ParamSetter, tex: &Tex, p: &P, label: &s
     knob_input(ui, setter, p, hit, tip);
     let painter = ui.painter().clone();
     let t = p.unmodulated_normalized_value();
-    print(&painter, c - Vec2::new(0.0, r + 18.0), Align2::CENTER_CENTER, label, 9.0, PRINT);
+    print(&painter, c - Vec2::new(0.0, r + 28.0), Align2::CENTER_CENTER, label, 9.0, PRINT);
     for i in 0..=10 {
         let tt = i as f32 / 10.0;
         let major = i % 5 == 0;
@@ -393,7 +370,8 @@ fn knob<P: Param>(ui: &mut Ui, setter: &ParamSetter, tex: &Tex, p: &P, label: &s
         painter.circle_filled(polar(c, r + 14.5, ang(0.5)), 1.5, PRINT);
     }
     // sprite: knob radius is 0.36 of the sprite size
-    let size = Vec2::splat(2.0 * r / 0.72);
+    // sprite: knob radius is 0.30 of the sprite size (room for the soft shadow)
+    let size = Vec2::splat(2.0 * r / 0.60);
     sprite(&painter, &tex.knob, c, size);
     sprite_rot(&painter, &tex.knob_rot, c, size, (t - 0.5) * SWEEP, Color32::WHITE);
     value_plate(ui, setter, p, label, Rect::from_center_size(c + Vec2::new(0.0, r + 25.0), Vec2::new(60.0, 16.0)));
@@ -424,7 +402,7 @@ fn big_knob(ui: &mut Ui, setter: &ParamSetter, tex: &Tex, p: &FloatParam, c: Pos
             painter.circle_filled(pos + Vec2::new(-0.8, -0.9), 0.8, Color32::from_white_alpha(50));
         }
     }
-    let size = Vec2::splat(2.0 * r / 0.80);
+    let size = Vec2::splat(2.0 * r / 0.64);
     sprite(&painter, &tex.big, c, size);
     sprite_rot(&painter, &tex.big_rot, c, size, (t - 0.5) * SWEEP, Color32::WHITE);
 }
@@ -435,9 +413,9 @@ fn toggle(ui: &mut Ui, tex: &Tex, c: Pos2, on: bool, top: &str, bottom: &str, ti
     let resp = ui.allocate_rect(hit, Sense::click());
     let resp = if tip.is_empty() { resp } else { resp.on_hover_text(tip) };
     let p = ui.painter();
-    print(p, c - Vec2::new(0.0, 35.0), Align2::CENTER_CENTER, top, 8.0, if on { PRINT } else { PRINT_DIM });
+    print(p, c - Vec2::new(0.0, 51.0), Align2::CENTER_CENTER, top, 8.0, if on { PRINT } else { PRINT_DIM });
     if !bottom.is_empty() {
-        print(p, c + Vec2::new(0.0, 33.0), Align2::CENTER_CENTER, bottom, 8.0, if on { PRINT_DIM } else { PRINT });
+        print(p, c + Vec2::new(0.0, 35.0), Align2::CENTER_CENTER, bottom, 8.0, if on { PRINT_DIM } else { PRINT });
     }
     sprite(p, if on { &tex.tog_up } else { &tex.tog_dn }, c, Vec2::new(44.0, 60.5));
     resp.clicked()
@@ -445,7 +423,7 @@ fn toggle(ui: &mut Ui, tex: &Tex, c: Pos2, on: bool, top: &str, bottom: &str, ti
 
 /// Square rubber push button with a lit window.
 fn push_button(ui: &mut Ui, _tex: &Tex, c: Pos2, on: bool, label: &str, tip: &str) -> bool {
-    let r = Rect::from_center_size(c, Vec2::new(44.0, 20.0));
+    let r = Rect::from_center_size(c, Vec2::new(50.0, 20.0));
     let resp = ui.allocate_rect(r, Sense::click()).on_hover_text(tip);
     let p = ui.painter();
     let pressed = resp.is_pointer_button_down_on();
@@ -767,7 +745,7 @@ fn led_bar_gr(p: &Painter, r: Rect, gr: f32) {
         let lit = gr >= i as f32 + 0.3;
         p.rect_filled(sr, CornerRadius::same(1), if lit { RED } else { Color32::from_rgb(0x2c, 0x12, 0x10) });
     }
-    print(p, Pos2::new(r.left(), r.top() - 8.0), Align2::LEFT_CENTER, "GR", 7.5, PRINT_DIM);
+    print(p, Pos2::new(r.center().x, r.top() - 9.0), Align2::CENTER_CENTER, "LIMIT  GR", 7.5, PRINT_DIM);
 }
 
 /// Bottom-right grip that resizes the window keeping its proportions.
