@@ -495,8 +495,10 @@ fn value_plate<P: Param>(ui: &mut Ui, setter: &ParamSetter, p: &P, id: &str, vr:
         painter.text(vr.center() + Vec2::new(0.0, 0.5), Align2::CENTER_CENTER, &val, FontId::monospace(10.5), Color32::from_rgba_unmultiplied(255, 150, 40, 50));
         painter.text(vr.center(), Align2::CENTER_CENTER, &val, FontId::monospace(10.5), AMBER);
         if resp.clicked() {
-            let plain = val.trim().split(' ').next().unwrap_or("").to_string();
-            let plain = if p.name() == "Dynamics" { val.clone() } else { plain };
+            // bare number, unless the number alone would mean something else ("PUNCH 40", "1.03 s")
+            let first = val.trim().split(' ').next().unwrap_or("").to_string();
+            let same = p.string_to_normalized_value(&first).map(|m| p.normalized_value_to_string(m, true)).as_deref() == Some(val.as_str());
+            let plain = if same { first } else { val.trim().to_string() };
             ui.data_mut(|d| d.insert_temp(edit_id, plain));
             ui.data_mut(|d| d.insert_temp(egui::Id::new(("db_edit_fresh", id)), true));
         }

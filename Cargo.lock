@@ -787,7 +787,7 @@ checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
 
 [[package]]
 name = "daubiko"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "nih_plug",
  "nih_plug_egui",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "nyashk_common"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "nih_plug",
  "nih_plug_egui",
