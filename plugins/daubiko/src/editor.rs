@@ -45,6 +45,68 @@ struct Tex {
     amb_off: TextureHandle,
     screw: TextureHandle,
     plate: TextureHandle,
+    /// smooth white disc / soft glow, tinted per use: small round LEDs drawn as
+    /// tessellated circles came out slightly oval and uneven, these are identical everywhere
+    /// LED ring sprites [violet, print, amber] x [off, on] and the bipolar centre dot
+    leds: [[TextureHandle; 2]; 3],
+    centre_dot: TextureHandle,
+}
+
+/// Discs painted at 4x their on-screen size: drawn on whole pixels, the second mip level
+/// lands 1:1 on the screen, so every dot is perfectly round on the GPU and the CPU path alike.
+/// `layers`: (centre offset, radius, colour, soft glow) in logical pixels.
+const SS: f32 = 4.0;
+fn paint_discs(size: f32, layers: &[(Vec2, f32, Color32, bool)]) -> ColorImage {
+    let n = (size * SS) as usize;
+    let mut acc = vec![[0.0f32; 4]; n * n];
+    let h = size * 0.5;
+    for &(off, r, col, soft) in layers {
+        let [cr, cg, cb, ca] = col.to_array().map(|v| v as f32 / 255.0);
+        for y in 0..n {
+            for x in 0..n {
+                let px = (x as f32 + 0.5) / SS - h - off.x;
+                let py = (y as f32 + 0.5) / SS - h - off.y;
+                let d = (px * px + py * py).sqrt();
+                let cov = if soft { (1.0 - d / r).clamp(0.0, 1.0).powi(2) } else { ((r - d) * SS + 0.5).clamp(0.0, 1.0) };
+                if cov <= 0.0 {
+                    continue;
+                }
+                // premultiplied "over"
+                let a = &mut acc[y * n + x];
+                let k = 1.0 - ca * cov;
+                *a = [cr * cov + a[0] * k, cg * cov + a[1] * k, cb * cov + a[2] * k, ca * cov + a[3] * k];
+            }
+        }
+    }
+    let px: Vec<Color32> = acc
+        .iter()
+        .map(|a| Color32::from_rgba_premultiplied((a[0] * 255.0).round() as u8, (a[1] * 255.0).round() as u8, (a[2] * 255.0).round() as u8, (a[3] * 255.0).round() as u8))
+        .collect();
+    ColorImage { size: [n, n], pixels: px }
+}
+
+const LED_SIZE: f32 = 20.0;
+fn led_image(col: Color32, on: bool) -> ColorImage {
+    let o = Vec2::ZERO;
+    let hl = Vec2::new(-0.7, -0.8);
+    let mut l = vec![(o, 4.0, Color32::from_rgb(0x2c, 0x29, 0x2c), false), (o, 3.3, Color32::from_rgb(0x0e, 0x0b, 0x0e), false)];
+    if on {
+        l.push((o, 8.0, col.gamma_multiply(0.35), true));
+        l.push((o, 2.7, col, false));
+        l.push((hl, 1.0, Color32::from_white_alpha(200), false));
+    } else {
+        l.push((o, 2.6, col.gamma_multiply(0.16).to_opaque(), false));
+        l.push((hl, 0.8, Color32::from_white_alpha(50), false));
+    }
+    paint_discs(LED_SIZE, &l)
+}
+
+/// Draw a 4x-painted sprite of logical `size` centred on the nearest whole pixel.
+fn dot(p: &Painter, t: &TextureHandle, c: Pos2, size: f32, ppp: f32) {
+    let half = size * 0.5;
+    let x = ((c.x - half) * ppp).round() / ppp;
+    let y = ((c.y - half) * ppp).round() / ppp;
+    p.image(t.id(), Rect::from_min_size(Pos2::new(x, y), Vec2::splat(size)), UV, Color32::WHITE);
 }
 
 struct Gui {
@@ -76,6 +138,8 @@ fn load(ctx: &egui::Context) -> Tex {
         amb_off: l("db_amb_off", pics::png(pics::LAMP_AMBER_OFF)),
         screw: l("db_screw", pics::png(pics::SCREW)),
         plate: l("db_plate", pics::png(pics::PLATE)),
+        leds: [VIOLET, PRINT, AMBER].map(|c| [l("db_led_off", led_image(c, false)), l("db_led_on", led_image(c, true))]),
+        centre_dot: l("db_cdot", paint_discs(4.0, &[(Vec2::ZERO, 1.6, PRINT, false)])),
     }
 }
 
@@ -367,7 +431,7 @@ fn knob<P: Param>(ui: &mut Ui, setter: &ParamSetter, tex: &Tex, p: &P, label: &s
         painter.line_segment([polar(c, r + 5.0, a), polar(c, r + if major { 11.0 } else { 8.0 }, a)], Stroke::new(if major { 1.5_f32 } else { 1.0 }, if major { PRINT } else { PRINT_DIM }));
     }
     if bipolar {
-        painter.circle_filled(polar(c, r + 14.5, ang(0.5)), 1.5, PRINT);
+        dot(&painter, &tex.centre_dot, polar(c, r + 14.5, ang(0.5)), 4.0, ui.ctx().pixels_per_point());
     }
     // sprite: knob radius is 0.36 of the sprite size
     // sprite: knob radius is 0.30 of the sprite size (room for the soft shadow)
@@ -385,22 +449,13 @@ fn big_knob(ui: &mut Ui, setter: &ParamSetter, tex: &Tex, p: &FloatParam, c: Pos
     let painter = ui.painter().clone();
     let t = p.unmodulated_normalized_value();
     let n = 31;
+    let ppp = ui.ctx().pixels_per_point();
     for i in 0..n {
         let tt = i as f32 / (n - 1) as f32;
         let pos = polar(c, r + 18.0, ang(tt));
         let on = lit && ((tt >= 0.5 && tt <= t + 1e-4) || (tt <= 0.5 && tt >= t - 1e-4));
-        let col = if tt < 0.5 { VIOLET } else if tt > 0.5 { AMBER } else { PRINT };
-        // socket
-        painter.circle_filled(pos, 3.6, Color32::from_rgb(0x0e, 0x0b, 0x0e));
-        painter.circle_stroke(pos, 3.6, Stroke::new(0.8_f32, Color32::from_white_alpha(22)));
-        if on {
-            painter.circle_filled(pos, 7.0, col.gamma_multiply(0.14));
-            painter.circle_filled(pos, 2.7, col);
-            painter.circle_filled(pos + Vec2::new(-0.8, -0.9), 1.0, Color32::from_white_alpha(200));
-        } else {
-            painter.circle_filled(pos, 2.6, col.gamma_multiply(0.16).to_opaque());
-            painter.circle_filled(pos + Vec2::new(-0.8, -0.9), 0.8, Color32::from_white_alpha(50));
-        }
+        let ci = if tt < 0.5 { 0 } else if tt > 0.5 { 2 } else { 1 };
+        dot(&painter, &tex.leds[ci][on as usize], pos, LED_SIZE, ppp);
     }
     let size = Vec2::splat(2.0 * r / 0.64);
     sprite(&painter, &tex.big, c, size);
