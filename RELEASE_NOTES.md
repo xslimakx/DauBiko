@@ -1,3 +1,7 @@
+## DauBiko 1.0.4
+
+- **Blank GUI after reopening fixed:** after closing the plugin window and opening it again, the photo, knobs, VU meters, switches and lamps came up empty (only text and lines were drawn). The pictures belonged to the previous window; they are now loaded again for every new window.
+
 ## DauBiko 1.0.3
 
 - **LED ring:** the dots around DYNAMICS are now perfectly round and identical (they were drawn as tiny polygons and came out slightly oval or crooked).

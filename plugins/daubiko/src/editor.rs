@@ -168,7 +168,11 @@ pub fn create(params: Arc<DauBikoParams>, meters: Arc<Meters>) -> Option<Box<dyn
     create_egui_editor(
         editor_state,
         Gui { tex: None, spec: Spectrum::new(4096), needle: [0.0; 2], dyn_show: 0.0, lim_show: 0.0, out_hold: -90.0 },
-        |ctx, _| {
+        |ctx, st| {
+            // Every time the window opens it gets a new egui context and renderer, but this state
+            // lives on: textures loaded into the previous window do not exist in the new one, so the
+            // photo, knobs, meters and switches came up blank after closing and reopening the GUI.
+            st.tex = None;
             let mut v = egui::Visuals::dark();
             v.override_text_color = Some(PRINT);
             v.extreme_bg_color = Color32::from_rgb(0x16, 0x10, 0x08);
