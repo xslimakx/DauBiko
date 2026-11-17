@@ -1,3 +1,8 @@
+## DauBiko 1.0.5
+
+- **True-peak safe limiter:** the limiter watched only the samples, so on hot, bright material the waveform between them could still go over the ceiling (+0.1 dBTP with the ceiling at -0.3). It now also checks the points between the samples (4x); measured true peak stays within 0.05 dB of the ceiling. Latency grows by 4 samples (reported to the host).
+- New tests: true peak under the ceiling, the width control keeps the mono sum exactly.
+
 ## DauBiko 1.0.4
 
 - **Blank GUI after reopening fixed:** after closing the plugin window and opening it again, the photo, knobs, VU meters, switches and lamps came up empty (only text and lines were drawn). The pictures belonged to the previous window; they are now loaded again for every new window.

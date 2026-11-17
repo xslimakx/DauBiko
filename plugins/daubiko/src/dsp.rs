@@ -4,6 +4,7 @@
 //! input -> low cut -> LOW / BODY / PRESENCE / AIR / TILT -> width (+ bass mono)
 //!       -> DYNAMICS (punch / glue) -> drive (2x oversampled) -> gain -> limiter -> out
 use nyashk_common::dsp::*;
+use std::f32::consts::PI;
 use std::collections::VecDeque;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -66,6 +67,8 @@ pub const AIR_HZ: f32 = 12000.0;
 pub const TILT_HZ: f32 = 700.0;
 pub const MONO_HZ: f32 = 120.0;
 pub const EQ_N: usize = 7;
+/// extra delay of the true-peak detector (half its interpolation filter)
+pub const TP_D: usize = 4;
 /// LOW CUT at or below this is OFF (no filter at all).
 pub const LOWCUT_OFF_HZ: f32 = 10.5;
 
@@ -210,6 +213,9 @@ pub struct Master {
     boxsum: f64,
     lim_g: f32,
     c_rel: f32,
+    /// true-peak detection: the last 8 samples (with gain) per channel and the 4x interpolation
+    tp_hist: [[f32; 8]; 2],
+    tp_h: [[f32; 8]; 3],
     delay: [Delay; 2],
     dyn_la: usize,
     dyn_delay: [Delay; 2],
@@ -259,10 +265,24 @@ impl Master {
             boxsum: look as f64,
             lim_g: 1.0,
             c_rel: time_coef(80.0, fs),
-            delay: [Delay::new(look - 1), Delay::new(look - 1)],
+            tp_hist: [[0.0; 8]; 2],
+            tp_h: {
+                // windowed-sinc taps for the points 1/4, 2/4, 3/4 between samples 3 and 4
+                let mut h = [[0.0f32; 8]; 3];
+                for (q, row) in h.iter_mut().enumerate() {
+                    let t = 3.0 + (q as f32 + 1.0) / 4.0;
+                    for (i, c) in row.iter_mut().enumerate() {
+                        let d = t - i as f32;
+                        let sinc = if d.abs() < 1e-6 { 1.0 } else { (PI * d).sin() / (PI * d) };
+                        *c = sinc * (0.5 + 0.5 * (PI * d / 4.5).cos());
+                    }
+                }
+                h
+            },
+            delay: [Delay::new(look - 1 + TP_D), Delay::new(look - 1 + TP_D)],
             dyn_la,
             dyn_delay: [Delay::new(dyn_la), Delay::new(dyn_la)],
-            dry_delay: [Delay::new(look - 1 + dyn_la), Delay::new(look - 1 + dyn_la)],
+            dry_delay: [Delay::new(look - 1 + dyn_la + TP_D), Delay::new(look - 1 + dyn_la + TP_D)],
             bypass: Smooth::new(1.0, fs, 10.0),
             in_peak: 0.0,
             out_peak: 0.0,
@@ -276,7 +296,7 @@ impl Master {
 
     /// Latency in samples (constant: DYNAMICS lookahead 1 ms + limiter lookahead 1.5 ms, also when they are off).
     pub fn latency(&self) -> usize {
-        self.dyn_la + self.look - 1
+        self.dyn_la + self.look - 1 + TP_D
     }
 
     pub fn vu_in_db(&self) -> f32 {
@@ -307,6 +327,7 @@ impl Master {
         self.boxpos = 0;
         self.boxsum = self.look as f64;
         self.lim_g = 1.0;
+        self.tp_hist = [[0.0; 8]; 2];
         for d in self.delay.iter_mut().chain(self.dry_delay.iter_mut()).chain(self.dyn_delay.iter_mut()) {
             d.reset();
         }
@@ -403,7 +424,22 @@ impl Master {
 
         // ---- lookahead limiter (min-hold + box average, delay look-1, stereo linked)
         let ceil = db_to_lin(p.ceiling_db.min(0.0));
-        let pk = s[0].abs().max(s[1].abs());
+        // true peak: the samples and the points between them (4x), so the output also stays
+        // under the ceiling after D/A conversion or encoding (it overshot by up to ~0.4 dB)
+        let mut pk = 0.0f32;
+        for c in 0..n {
+            let h = &mut self.tp_hist[c];
+            h.copy_within(1..8, 0);
+            h[7] = s[c];
+            pk = pk.max(h[3].abs()).max(h[4].abs());
+            for row in &self.tp_h {
+                let mut v = 0.0;
+                for i in 0..8 {
+                    v += row[i] * h[i];
+                }
+                pk = pk.max(v.abs());
+            }
+        }
         let req = if p.limiter && pk > ceil { ceil / pk } else { 1.0 };
         let held = self.minw.push(req);
         self.boxsum += held as f64 - self.boxbuf[self.boxpos] as f64;
