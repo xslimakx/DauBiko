@@ -422,3 +422,19 @@ fn realtime_performance() {
     assert!(y.len() == x.len());
     assert!(secs < 2.0, "too slow: {secs}s for 10s");
 }
+
+#[test]
+fn recovers_after_nan_or_inf_from_the_host() {
+    for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let mut a = Master::new(48000.0);
+        let p = Params::default();
+        for n in 0..96000 {
+            let v = if (100..110).contains(&n) { bad } else { 0.3 * (n as f32 * 0.05).sin() };
+            let mut x = [v, v];
+            a.process(&p, &mut x, 2);
+            if n > 48000 {
+                assert!(x[0].is_finite() && x[1].is_finite(), "daubiko {bad}: still broken at n {n}: {x:?}");
+            }
+        }
+    }
+}

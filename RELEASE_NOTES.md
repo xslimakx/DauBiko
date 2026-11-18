@@ -1,3 +1,8 @@
+## DauBiko 1.0.6
+
+- Захист від NaN / inf від хоста: один «битий» семпл більше не ламає плагін назавжди (раніше фільтри залишались у NaN і звук пропадав до перезапуску).
+- Оверсемплінг сатурації (Drive): новий поліфазний half-band фільтр, рівний до 20 кГц, аліасинг > 100 дБ нижче.
+
 ## DauBiko 1.0.5
 
 - **True-peak safe limiter:** the limiter watched only the samples, so on hot, bright material the waveform between them could still go over the ceiling (+0.1 dBTP with the ceiling at -0.3). It now also checks the points between the samples (4x); measured true peak stays within 0.05 dB of the ceiling. Latency grows by 4 samples (reported to the host).

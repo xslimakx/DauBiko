@@ -338,6 +338,12 @@ impl Master {
     /// Process one frame in place. `n` = number of channels (1 or 2).
     pub fn process(&mut self, p: &Params, x: &mut [f32; 2], n: usize) {
         let n = n.clamp(1, 2);
+        // a NaN / inf from the host would stay in the filter memories for good: treat it as silence
+        for v in x.iter_mut() {
+            if !v.is_finite() {
+                *v = 0.0;
+            }
+        }
         let dry = *x;
         // ---- input
         let gin = db_to_lin(p.input_db);
