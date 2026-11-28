@@ -1,23 +1,23 @@
 ## DauBiko 1.0.10
 
-- Спектр на екрані TONE тепер показує справжній рівень піків. Раніше вузькі піки (чистий тон, гармоніки) малювалися до ~5 dB нижче через згладжування між сусідніми точками, і ще до 1,4 dB губилось, коли тон потрапляв між бінами FFT. Тепер тон показується на своєму рівні з точністю ±0,5 dB.
+- The spectrum on the TONE screen now shows the true level of peaks. Before, narrow peaks (a pure tone, harmonics) were drawn up to ~5 dB too low because of smoothing between neighbouring points, and up to another 1.4 dB was lost when a tone fell between FFT bins. Now a tone is shown at its own level within ±0.5 dB.
 
 ## DauBiko 1.0.9
 
-- Спектр на екрані TONE тепер плавний: крива між бінами FFT замість прямих відрізків і кутів.
+- The spectrum on the TONE screen is now smooth: a curve between the FFT bins instead of straight segments and corners.
 
 ## DauBiko 1.0.8
 
-- Більше жодних випадкових тріщань через інші копії плагіна: в аудіопотоці бралося глобальне блокування (лишилося від демо-режиму для скріншотів), спільне для всіх копій. Коли Bitwig обробляв кілька доріжок паралельно, один аудіопотік міг чекати на інший і не встигати. Тепер перевірка без блокувань.
+- No more random crackles caused by other copies of the plugin: the audio thread took a global lock (left over from the screenshot demo mode) shared by all copies. When Bitwig processed several tracks in parallel, one audio thread could wait for another and miss its deadline. The check is now lock-free.
 
 ## DauBiko 1.0.7
 
-- Кілька копій плагіна в одному проєкті тепер відкриваються миттєво: раніше друге вікно відкривалося до 1,5 с, а закриття будь-якого вікна блокувало DAW до 1 с (вікно чекало, поки закриються всі вікна наших плагінів у процесі, а не лише своє). Через це в Bitwig перше вікно могло на секунду зникати.
+- Several copies of the plugin in one project now open instantly: before, the second window took up to 1.5 s to open, and closing any window blocked the DAW for up to 1 s (a window waited for every window of our plugins in the process to close, not just its own). Because of this the first window in Bitwig could disappear for a second.
 
 ## DauBiko 1.0.6
 
-- Захист від NaN / inf від хоста: один «битий» семпл більше не ламає плагін назавжди (раніше фільтри залишались у NaN і звук пропадав до перезапуску).
-- Оверсемплінг сатурації (Drive): новий поліфазний half-band фільтр, рівний до 20 кГц, аліасинг > 100 дБ нижче.
+- Protection against NaN / inf from the host: one "broken" sample no longer breaks the plugin for good (before, the filters stayed stuck at NaN and the sound was gone until a restart).
+- Saturation (Drive) oversampling: a new polyphase half-band filter, flat up to 20 kHz, aliasing more than 100 dB down.
 
 ## DauBiko 1.0.5
 
